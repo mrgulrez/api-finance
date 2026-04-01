@@ -1,0 +1,9 @@
+Django==5.0.6
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+django-filter==24.2
+drf-spectacular==0.27.2
+django-cors-headers==4.4.0
+django-environ==0.11.2
+python-dateutil==2.9.0
+Faker==25.2.0
