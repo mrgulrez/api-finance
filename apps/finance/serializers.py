@@ -48,8 +48,11 @@ class FinancialRecordSerializer(serializers.ModelSerializer):
         return value
 
     def validate_date(self, value: date) -> date:
-        """Date cannot be in the future."""
-        if value > date.today():
+        """Date cannot be in the future (accounts for timezone differences)."""
+        from datetime import timedelta
+        from django.utils import timezone
+
+        if value > timezone.now().date() + timedelta(days=1):
             raise serializers.ValidationError("Date cannot be in the future.")
         return value
 
