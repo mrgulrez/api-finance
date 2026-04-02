@@ -126,6 +126,17 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         user       — { id, email, full_name, role }
     """
 
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token["user"] = {
+            "id": user.id,
+            "email": user.email,
+            "full_name": user.full_name,
+            "role": user.role,
+        }
+        return token
+
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         data = super().validate(attrs)
         data["user"] = {
