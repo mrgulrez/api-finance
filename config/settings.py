@@ -243,7 +243,13 @@ EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = env("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD")
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
-FRONTEND_URL = env("FRONTEND_URL")
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Finance System <noreply@finance.local>")
+FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
+
+# ─── Test Overrides ───────────────────────────────────────────────────────────
+# When running tests (pytest), use in-memory email so no real emails are sent
+import sys
+if "pytest" in sys.modules:
+    EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
