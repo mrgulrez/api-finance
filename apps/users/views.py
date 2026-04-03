@@ -17,6 +17,9 @@ User management (ADMIN):
 """
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_decode
+from django.utils.encoding import force_str
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -39,6 +42,7 @@ from .serializers import (
     UserSerializer,
     UserUpdateSerializer,
 )
+from .utils import send_password_reset_email
 
 User = get_user_model()
 
@@ -104,6 +108,83 @@ class LogoutView(ApiResponseMixin, APIView):
                 status_code=status.HTTP_400_BAD_REQUEST,
             )
         return self.success_response(message="Logged out successfully.")
+
+class VerifyEmailView(ApiResponseMixin, APIView):
+    """
+    POST /api/v1/auth/verify-email/
+    """
+    permission_classes = [AllowAny]
+    
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        uidb64 = request.data.get("uidb64")
+        token = request.data.get("token")
+        
+        if not uidb64 or not token:
+            return self.error_response("Missing parameters.", status_code=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+            
+        if user is not None and default_token_generator.check_token(user, token):
+            if not user.is_active:
+                user.is_active = True
+                user.save(update_fields=['is_active'])
+            return self.success_response(message="Email verified successfully.")
+        else:
+            return self.error_response("Invalid or expired token.", status_code=status.HTTP_400_BAD_REQUEST)
+
+class ForgotPasswordView(ApiResponseMixin, APIView):
+    """
+    POST /api/v1/auth/forgot-password/
+    """
+    permission_classes = [AllowAny]
+    
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        email = request.data.get("email", "").lower().strip()
+        if not email:
+            return self.error_response("Email is required.", status_code=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            user = User.objects.get(email=email)
+            if user.is_active: 
+               send_password_reset_email(user)
+        except User.DoesNotExist:
+            pass # Prevent user enumeration by not returning an error
+            
+        return self.success_response(message="If an account with that email exists, a reset link has been sent.")
+
+class ResetPasswordView(ApiResponseMixin, APIView):
+    """
+    POST /api/v1/auth/reset-password/
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        uidb64 = request.data.get("uidb64")
+        token = request.data.get("token")
+        new_password = request.data.get("new_password")
+        
+        if not all([uidb64, token, new_password]):
+            return self.error_response("Missing parameters.", status_code=status.HTTP_400_BAD_REQUEST)
+            
+        if len(new_password) < 8:
+            return self.error_response("Password must be at least 8 characters long.", status_code=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+
+        if user is not None and default_token_generator.check_token(user, token):
+            user.set_password(new_password)
+            user.save()
+            return self.success_response(message="Password reset successfully.")
+        else:
+            return self.error_response("Invalid or expired token.", status_code=status.HTTP_400_BAD_REQUEST)
 
 
 # ─── User Management ViewSet ──────────────────────────────────────────────────

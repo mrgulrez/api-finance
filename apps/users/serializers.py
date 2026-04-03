@@ -16,6 +16,8 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from .utils import send_verification_email
+
 User = get_user_model()
 
 
@@ -59,12 +61,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data: dict[str, Any]) -> User:
-        return User.objects.create_user(
+        user = User.objects.create_user(
             email=validated_data["email"],
             password=validated_data["password"],
             full_name=validated_data["full_name"],
             role=User.Role.VIEWER,
+            is_active=False,
         )
+        send_verification_email(user)
+        return user
 
 
 class UserSerializer(serializers.ModelSerializer):
