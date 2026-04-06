@@ -249,7 +249,19 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Finance System <noreply@
 FRONTEND_URL = env("FRONTEND_URL", default="http://localhost:5173")
 
 # ─── Test Overrides ───────────────────────────────────────────────────────────
-# When running tests (pytest), use in-memory email so no real emails are sent
+# When running tests (pytest), isolate the suite from any developer-configured
+# DATABASE_URL so test setup stays deterministic and never touches shared infra.
 import sys
 if "pytest" in sys.modules:
     EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": ":memory:",
+        }
+    }
+    PASSWORD_HASHERS = [
+        "django.contrib.auth.hashers.MD5PasswordHasher",
+    ]
+    SECRET_KEY = "pytest-secret-key-with-safe-length-32-plus"
+    SIMPLE_JWT["SIGNING_KEY"] = SECRET_KEY
